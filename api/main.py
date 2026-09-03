@@ -1,15 +1,17 @@
-import os
-import socket
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-import psycopg2
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2.extras import RealDictCursor
 
 ROOT = Path(__file__).resolve().parent.parent
-LOCAL_PORTS = {"source_db": "5433", "dwh_db": "5434"}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT))
+
+from common.db import connect, load_env
+
 MONTH_NAMES = {
     1: "فروردین",
     2: "اردیبهشت",
@@ -34,46 +36,12 @@ JOIN dim_status s ON s.status_id = f.status_id
 """
 
 
-def load_env(path):
-    if not path.exists():
-        return
-    for raw in path.read_text().splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip())
-
-
-load_env(ROOT / ".env")
-
-
-def db_host_port():
-    host = os.environ["DWH_DB_HOST"]
-    port = os.environ["DWH_DB_PORT"]
-    try:
-        socket.getaddrinfo(host, int(port))
-        return host, port
-    except socket.gaierror:
-        if host in LOCAL_PORTS:
-            return "localhost", LOCAL_PORTS[host]
-        raise
-
-
-def connect():
-    host, port = db_host_port()
-    return psycopg2.connect(
-        host=host,
-        port=port,
-        user=os.environ["DWH_DB_USER"],
-        password=os.environ["DWH_DB_PASSWORD"],
-        dbname=os.environ["DWH_DB_NAME"],
-    )
+load_env()
 
 
 @contextmanager
 def cursor():
-    conn = connect()
+    conn = connect("DWH")
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             yield cur

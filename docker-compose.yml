@@ -34,7 +34,9 @@ services:
       retries: 20
 
   data:
-    build: ./data
+    build:
+      context: .
+      dockerfile: data/Dockerfile
     depends_on:
       source_db:
         condition: service_healthy
@@ -44,9 +46,11 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
     restart: "no"
-    
+
   etl:
-    build: ./etl
+    build:
+      context: .
+      dockerfile: etl/Dockerfile
     depends_on:
       source_db:
         condition: service_healthy
@@ -60,7 +64,9 @@ services:
     restart: "no"
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     depends_on:
       dwh_db:
         condition: service_healthy

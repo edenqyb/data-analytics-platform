@@ -1,57 +1,19 @@
 import os
-import socket
-import time
+import sys
 from io import StringIO
 from pathlib import Path
 
 import pandas as pd
-import psycopg2
 from psycopg2 import sql
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT))
+
+from common.db import connect, load_env
+
 CSV_PATH = Path(os.environ.get("CSV_PATH", ROOT / "data" / "source_data.csv"))
 SOURCE_TABLE = "raw_monthly_report"
-LOCAL_PORTS = {"source_db": "5433", "dwh_db": "5434"}
-
-
-def load_env(path):
-    if not path.exists():
-        return
-    for raw in path.read_text().splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip())
-
-
-def db_host_port(host_key, port_key):
-    host = os.environ[host_key]
-    port = os.environ[port_key]
-    try:
-        socket.getaddrinfo(host, int(port))
-        return host, port
-    except socket.gaierror:
-        if host in LOCAL_PORTS:
-            return "localhost", LOCAL_PORTS[host]
-        raise
-
-
-def connect(prefix):
-    host, port = db_host_port(f"{prefix}_DB_HOST", f"{prefix}_DB_PORT")
-    params = dict(
-        host=host,
-        port=port,
-        user=os.environ[f"{prefix}_DB_USER"],
-        password=os.environ[f"{prefix}_DB_PASSWORD"],
-        dbname=os.environ[f"{prefix}_DB_NAME"],
-    )
-    for _ in range(30):
-        try:
-            return psycopg2.connect(**params)
-        except psycopg2.OperationalError:
-            time.sleep(2)
-    raise RuntimeError(f"{prefix.lower()} postgres is not ready")
 
 
 def create_source_table_sql(columns):
@@ -89,7 +51,7 @@ def load_source(conn):
 
 
 def main():
-    load_env(ROOT / ".env")
+    load_env()
     source_conn = connect("SOURCE")
     try:
         load_source(source_conn)
