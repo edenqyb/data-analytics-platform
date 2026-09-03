@@ -10,5 +10,5 @@ __pycache__/
 # virtual environment
 venv/
 
-# data
-data/
+# environment variables
+.env

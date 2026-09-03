@@ -1,0 +1,99 @@
+services:
+  source_db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${SOURCE_DB_USER}
+      POSTGRES_PASSWORD: ${SOURCE_DB_PASSWORD}
+      POSTGRES_DB: ${SOURCE_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./source_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - source_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SOURCE_DB_USER} -d ${SOURCE_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  dwh_db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DWH_DB_USER}
+      POSTGRES_PASSWORD: ${DWH_DB_PASSWORD}
+      POSTGRES_DB: ${DWH_DB_NAME}
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./dwh_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - dwh_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DWH_DB_USER} -d ${DWH_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  data:
+    build: ./data
+    depends_on:
+      source_db:
+        condition: service_healthy
+      dwh_db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    restart: "no"
+    
+  etl:
+    build: ./etl
+    depends_on:
+      source_db:
+        condition: service_healthy
+      dwh_db:
+        condition: service_healthy
+      data:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    restart: "no"
+
+  api:
+    build: ./api
+    depends_on:
+      dwh_db:
+        condition: service_healthy
+      etl:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dashboard:
+    build: ./dashboard
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+      PYTHONUNBUFFERED: "1"
+
+volumes:
+  source_data:
+  dwh_data:
