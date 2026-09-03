@@ -45,6 +45,20 @@ curl http://localhost:8000/api/kpis
 curl "http://localhost:8000/api/kpis?month=7"
 curl "http://localhost:8000/api/metrics/by-category?code=6010"
 ```
+## Dashboard
+URL: http://localhost:8501
+
+Streamlit app. It only calls the API.
+Sidebar filters (same as the API query params). `All` means no filter:
+- Period (`year` / `month`)
+- Offices (`name` + `code`)
+- Category (`cat1` .. `cat7`)
+- Status (`status_code` + `name_fa`)
+What is on the page:
+- KPI cards from `/api/kpis`: total open work orders, number of offices, most common category
+- Monthly trend from `/api/metrics/trend`
+- Bar charts: by office, by category, by status
+- Table: office x category matrix from `/api/metrics/matrix`
 
 ## Quick start
 Copy `.env` values (user/password/db names) and then:
