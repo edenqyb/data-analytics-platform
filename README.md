@@ -36,6 +36,8 @@ All metric endpoints (and `/api/kpis`) take the same optional query params. Skip
 | `code` | `6010` (office code from the Excel file) |
 | `category_code` | `cat1` .. `cat7` |
 | `status_code` | `in_progress`, `invoice_prep`, `at_consultant`, `at_hq`, `at_finance` |
+
+
 Examples:
 ```bash
 curl http://localhost:8000/health
